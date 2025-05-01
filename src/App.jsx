@@ -33,20 +33,27 @@ function App() {
     setSenha("");
   };
 
+  const buscarPedidos = () => {
+    axios.get(`${API_URL}/fotos`)
+      .then(res => setPedidos(res.data.pedidos))
+      .catch(err => console.error("Erro ao buscar pedidos:", err));
+  };
+
   useEffect(() => {
     if (logado) {
-      axios.get(`${API_URL}/fotos`)
-        .then(res => setPedidos(res.data.pedidos))
-        .catch(err => console.error("Erro ao buscar pedidos:", err));
+      buscarPedidos();
     }
   }, [logado]);
 
   const carregarFotos = (pedido) => {
-    setPedidoSelecionado(pedido);
     axios.get(`${API_URL}/fotos/${pedido}`)
-      .then(res => setFotos(res.data.fotos))
+      .then(res => {
+        setFotos(res.data.fotos);
+        setPedidoSelecionado(pedido);
+      })
       .catch(err => {
         setFotos([]);
+        setPedidoSelecionado(pedido);
         alert("Pedido não encontrado.");
       });
   };
@@ -90,19 +97,25 @@ function App() {
         </button>
       </div>
 
-      <div style={{ marginBottom: "1rem" }}>
+      <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem" }}>
         <input
           type="text"
           placeholder="Buscar pedido manualmente..."
           value={pedidoManual}
           onChange={e => setPedidoManual(e.target.value)}
-          style={{ padding: "0.5rem", width: "300px", marginRight: "0.5rem" }}
+          style={{ padding: "0.5rem", width: "300px" }}
         />
         <button
           onClick={() => carregarFotos(pedidoManual)}
           style={{ padding: "0.5rem 1rem", cursor: "pointer" }}
         >
           Buscar
+        </button>
+        <button
+          onClick={buscarPedidos}
+          style={{ padding: "0.5rem 1rem", cursor: "pointer", backgroundColor: "#666", color: "white" }}
+        >
+          🔁 Atualizar Pedidos
         </button>
       </div>
 
@@ -148,7 +161,7 @@ function App() {
       )}
 
       {pedidoSelecionado && fotos.length === 0 && (
-        <p>Nenhuma foto encontrada para o pedido {pedidoSelecionado}.</p>
+        <p style={{ color: "gray" }}>Nenhuma foto encontrada para o pedido {pedidoSelecionado}.</p>
       )}
     </div>
   );
