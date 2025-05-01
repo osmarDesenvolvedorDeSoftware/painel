@@ -13,6 +13,7 @@ function App() {
   const [fotos, setFotos] = useState([]);
   const [pedidoSelecionado, setPedidoSelecionado] = useState("");
   const [pedidoManual, setPedidoManual] = useState("");
+  const [fotosBlob, setFotosBlob] = useState({}); // armazenar blobs por nome
 
   useEffect(() => {
     const token = localStorage.getItem("painel_auth");
@@ -56,9 +57,26 @@ function App() {
         Authorization: `Bearer ${API_TOKEN}`
       }
     })
-      .then(res => {
-        setFotos(res.data.fotos);
+      .then(async res => {
         setPedidoSelecionado(pedido);
+        setFotos(res.data.fotos);
+
+        // carregar cada imagem como blob com token
+        const blobs = {};
+        for (const foto of res.data.fotos) {
+          try {
+            const response = await axios.get(`${API_URL}/fotos/${pedido}/${foto}`, {
+              headers: {
+                Authorization: `Bearer ${API_TOKEN}`
+              },
+              responseType: "blob"
+            });
+            blobs[foto] = URL.createObjectURL(response.data);
+          } catch (err) {
+            console.error("Erro ao carregar imagem:", err);
+          }
+        }
+        setFotosBlob(blobs);
       })
       .catch(err => {
         setFotos([]);
@@ -155,7 +173,7 @@ function App() {
             {fotos.map(foto => (
               <img
                 key={foto}
-                src={`${API_URL}/fotos/${pedidoSelecionado}/${foto}`}
+                src={fotosBlob[foto]}
                 alt={foto}
                 style={{
                   width: "250px",
