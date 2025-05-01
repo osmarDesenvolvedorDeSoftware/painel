@@ -3,6 +3,7 @@ import axios from 'axios';
 
 const API_URL = "https://api-cc33.onrender.com";
 const SENHA_FIXA = "farmacia2025";
+const API_TOKEN = "Zy9*35r#FqM2!bXv6LgWq@T0dKe8^Azp";
 
 function App() {
   const [logado, setLogado] = useState(false);
@@ -34,7 +35,11 @@ function App() {
   };
 
   const buscarPedidos = () => {
-    axios.get(`${API_URL}/fotos`)
+    axios.get(`${API_URL}/fotos`, {
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`
+      }
+    })
       .then(res => setPedidos(res.data.pedidos))
       .catch(err => console.error("Erro ao buscar pedidos:", err));
   };
@@ -46,7 +51,11 @@ function App() {
   }, [logado]);
 
   const carregarFotos = (pedido) => {
-    axios.get(`${API_URL}/fotos/${pedido}`)
+    axios.get(`${API_URL}/fotos/${pedido}`, {
+      headers: {
+        Authorization: `Bearer ${API_TOKEN}`
+      }
+    })
       .then(res => {
         setFotos(res.data.fotos);
         setPedidoSelecionado(pedido);
