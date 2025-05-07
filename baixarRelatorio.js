@@ -2,10 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
-const cron = require('node-cron');
 const xlsx = require('xlsx');
-
-const CRONJOB = process.env.CRONJOB || '0 9 * * *';
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -41,14 +38,12 @@ async function carregarSessaoOuLogar(email, password) {
             await page.type('#username', email);
             console.log('📧 E-mail digitado.');
             await page.click('button.sc-dAlyuH');
-            console.log('➡️ Clicou em Avançar.');
             await sleep(2000);
 
             await page.waitForSelector('#password', { timeout: 120000 });
             await page.type('#password', password);
             console.log('🔑 Senha digitada.');
             await page.click('button.sc-dAlyuH');
-            console.log('➡️ Clicou em Entrar.');
             await sleep(3000);
 
             const botaoOutroDispositivo = await page.$('button.btn.btn-primary');
@@ -75,28 +70,19 @@ async function gerarERelatorio(page, jobId) {
     console.log('➡️ Acessando página do relatório...');
     await page.goto('https://erp.tiny.com.br/relatorio_produtos_lista_precos', { timeout: 180000 });
     await page.waitForSelector('#filtro1', { timeout: 120000 });
-
-    console.log('📄 Selecionando "Fator de Conversão"...');
     await page.select('#filtro1', '788991499');
-
-    console.log('🖱️ Clicando em "Gerar"...');
     await page.click('#btn-visualizar');
 
-    console.log('⬇️ Aguardando botão "Download" ficar clicável...');
     await page.waitForFunction(() => {
         const btn = document.querySelector('#btn-download');
         return btn && !btn.disabled && btn.offsetParent !== null;
     }, { timeout: 30000 });
 
-    console.log('⬇️ Clicando em "Download"...');
     await page.click('#btn-download');
-
-    console.log('📁 Aguardando abertura da tela de exportação...');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 }).catch(() => {});
     await sleep(1000);
 
-    console.log('📁 Clicando em "Exportar"...');
-    const downloadPath = path.resolve(__dirname, 'downloads');
+    const downloadPath = path.resolve('/tmp/n8n-downloads');
     fs.mkdirSync(downloadPath, { recursive: true });
 
     const client = await page.target().createCDPSession();
@@ -106,11 +92,10 @@ async function gerarERelatorio(page, jobId) {
     });
 
     await page.click('#btnExportarRelatorio');
-    console.log('⏳ Aguardando download do arquivo...');
 
     const nomeEsperado = 'lista-de-precos';
     const nomeFinal = `relatorio_tiny_fator_conversao_${jobId}.xls`;
-    const caminhoFinal = path.join('/tmp/n8n-downloads', nomeFinal);
+    const caminhoFinal = path.join(downloadPath, nomeFinal);
 
     for (let i = 0; i < 30; i++) {
         const arquivos = fs.readdirSync(downloadPath);
@@ -158,7 +143,7 @@ function gerarJsonCorrigido(caminhoXls, jobId) {
     fs.writeFileSync(jsonPath, JSON.stringify(jsonFormatado, null, 2), 'utf8');
     console.log(`📄 JSON corrigido salvo em: ${jsonPath}`);
 
-    // Adiciona log final para o n8n capturar
+    // Retorno final para n8n
     console.log(JSON.stringify({
         json: jsonPath,
         xls: path.join('/tmp/n8n-downloads', `relatorio_tiny_fator_conversao_${jobId}.xls`),
@@ -168,10 +153,12 @@ function gerarJsonCorrigido(caminhoXls, jobId) {
 
 const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYYY_HH-mm-ss');
 
-const tentarExecucao = async () => {
+(async () => {
     const jobId = generateShortId();
     const email = 'scrap@casadomedico.com.br';
     const password = 'Pingcdm24!!!';
+
+    console.log(`🚀 ${moment().format('HH:mm:ss')} Iniciando execução...`);
 
     try {
         const { browser, page } = await carregarSessaoOuLogar(email, password);
@@ -183,24 +170,6 @@ const tentarExecucao = async () => {
         console.log(`✅ Execução concluída com sucesso [${jobId}]`);
     } catch (error) {
         console.error(`❌ [${jobId}] Erro: ${error.message}`);
+        process.exit(1);
     }
-};
-
-(async () => {
-    const now = moment().tz("America/Sao_Paulo").format('DD-MM-YYYY HH:mm:ss');
-    console.log(`🚀 ${now} - Iniciando execução inicial...`);
-    await tentarExecucao();
 })();
-
-let isRunning = false;
-cron.schedule(CRONJOB, async () => {
-    if (isRunning) return;
-    isRunning = true;
-    try {
-        await tentarExecucao();
-    } catch (error) {
-        console.error(`❌ Cronjob falhou: ${error.message}`);
-    } finally {
-        isRunning = false;
-    }
-});
