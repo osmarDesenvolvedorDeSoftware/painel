@@ -1,4 +1,3 @@
-cat << 'EOF' > /opt/n8n/scripts/baixarRelatorio.js
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
@@ -73,7 +72,7 @@ function sleep(ms) {
     await page.click('#btnExportarRelatorio');
 
     const nomeEsperado = 'lista-de-precos';
-    const nomeFinal = \`relatorio_tiny_fator_conversao_\${jobId}.xls\`;
+    const nomeFinal = `relatorio_tiny_fator_conversao_${jobId}.xls`;
     const caminhoFinal = path.join(downloadPath, nomeFinal);
 
     for (let i = 0; i < 30; i++) {
@@ -98,4 +97,3 @@ function sleep(ms) {
     process.exit(1);
   }
 })();
-EOF
