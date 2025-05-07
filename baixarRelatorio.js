@@ -22,7 +22,7 @@ async function carregarSessaoOuLogar(email, password) {
 
     async function realizarLogin() {
         console.log('➡️ Acessando página de login...');
-        await page.goto('https://erp.tiny.com.br/login/', { timeout: 180000 }); // 3 minutos
+        await page.goto('https://erp.tiny.com.br/login/', { timeout: 180000 });
 
         try {
             const botaoLoginDireto = await page.waitForSelector('button.btn.btn-primary', { timeout: 3000 });
@@ -110,7 +110,7 @@ async function gerarERelatorio(page, jobId) {
 
     const nomeEsperado = 'lista-de-precos';
     const nomeFinal = `relatorio_tiny_fator_conversao_${jobId}.xls`;
-    const caminhoFinal = path.join(__dirname, nomeFinal);
+    const caminhoFinal = path.join('/tmp/n8n-downloads', nomeFinal);
 
     for (let i = 0; i < 30; i++) {
         const arquivos = fs.readdirSync(downloadPath);
@@ -154,9 +154,16 @@ function gerarJsonCorrigido(caminhoXls, jobId) {
         })
         .filter(item => item.descricao && item.codigo_sku);
 
-    const jsonPath = path.join(__dirname, `saida_tiny_${jobId}.json`);
+    const jsonPath = path.join('/tmp', `saida_tiny_${jobId}.json`);
     fs.writeFileSync(jsonPath, JSON.stringify(jsonFormatado, null, 2), 'utf8');
     console.log(`📄 JSON corrigido salvo em: ${jsonPath}`);
+
+    // Adiciona log final para o n8n capturar
+    console.log(JSON.stringify({
+        json: jsonPath,
+        xls: path.join('/tmp/n8n-downloads', `relatorio_tiny_fator_conversao_${jobId}.xls`),
+        timestamp: jobId
+    }));
 }
 
 const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYYY_HH-mm-ss');
