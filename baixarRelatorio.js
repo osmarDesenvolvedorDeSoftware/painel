@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
-const xlsx = require('xlsx'); // <- ESSENCIAL!
+const xlsx = require('xlsx');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -154,24 +154,14 @@ function gerarJsonCorrigido(caminhoXls, jobId) {
     const jsonPath = path.join(__dirname, `saida_tiny_${jobId}.json`);
     fs.writeFileSync(jsonPath, JSON.stringify(jsonFormatado, null, 2), 'utf8');
     console.log(`📄 JSON corrigido salvo em: ${jsonPath}`);
-
-    // Retorno final para o n8n
-    console.log(JSON.stringify({
-        json: jsonPath,
-        xls: path.join(__dirname, `relatorio_tiny_fator_conversao_${jobId}.xls`),
-        timestamp: jobId
-    }));
 }
 
 const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYYY_HH-mm-ss');
 
-(async () => {
-    const now = moment().tz("America/Sao_Paulo").format('DD-MM-YYYY HH:mm:ss');
+const tentarExecucao = async () => {
     const jobId = generateShortId();
     const email = 'scrap@casadomedico.com.br';
     const password = 'Pingcdm24!!!';
-
-    console.log(`🚀 ${now} - Iniciando execução única...`);
 
     try {
         const { browser, page } = await carregarSessaoOuLogar(email, password);
@@ -179,9 +169,15 @@ const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYY
         await browser.close();
 
         gerarJsonCorrigido(caminhoXls, jobId);
+
         console.log(`✅ Execução concluída com sucesso [${jobId}]`);
     } catch (error) {
         console.error(`❌ [${jobId}] Erro: ${error.message}`);
-        process.exit(1);
     }
+};
+
+(async () => {
+    const now = moment().tz("America/Sao_Paulo").format('DD-MM-YYYY HH:mm:ss');
+    console.log(`🚀 ${now} - Iniciando execução única...`);
+    await tentarExecucao();
 })();
