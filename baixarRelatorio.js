@@ -2,7 +2,6 @@ const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment-timezone');
-const xlsx = require('xlsx');
 
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
@@ -38,12 +37,14 @@ async function carregarSessaoOuLogar(email, password) {
             await page.type('#username', email);
             console.log('📧 E-mail digitado.');
             await page.click('button.sc-dAlyuH');
+            console.log('➡️ Clicou em Avançar.');
             await sleep(2000);
 
             await page.waitForSelector('#password', { timeout: 120000 });
             await page.type('#password', password);
             console.log('🔑 Senha digitada.');
             await page.click('button.sc-dAlyuH');
+            console.log('➡️ Clicou em Entrar.');
             await sleep(3000);
 
             const botaoOutroDispositivo = await page.$('button.btn.btn-primary');
@@ -70,19 +71,28 @@ async function gerarERelatorio(page, jobId) {
     console.log('➡️ Acessando página do relatório...');
     await page.goto('https://erp.tiny.com.br/relatorio_produtos_lista_precos', { timeout: 180000 });
     await page.waitForSelector('#filtro1', { timeout: 120000 });
+
+    console.log('📄 Selecionando "Fator de Conversão"...');
     await page.select('#filtro1', '788991499');
+
+    console.log('🖱️ Clicando em "Gerar"...');
     await page.click('#btn-visualizar');
 
+    console.log('⬇️ Aguardando botão "Download" ficar clicável...');
     await page.waitForFunction(() => {
         const btn = document.querySelector('#btn-download');
         return btn && !btn.disabled && btn.offsetParent !== null;
     }, { timeout: 30000 });
 
+    console.log('⬇️ Clicando em "Download"...');
     await page.click('#btn-download');
+
+    console.log('📁 Aguardando abertura da tela de exportação...');
     await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 20000 }).catch(() => {});
     await sleep(1000);
 
-    const downloadPath = path.resolve('/tmp/n8n-downloads');
+    console.log('📁 Clicando em "Exportar"...');
+    const downloadPath = path.resolve(__dirname, 'downloads');
     fs.mkdirSync(downloadPath, { recursive: true });
 
     const client = await page.target().createCDPSession();
@@ -92,10 +102,11 @@ async function gerarERelatorio(page, jobId) {
     });
 
     await page.click('#btnExportarRelatorio');
+    console.log('⏳ Aguardando download do arquivo...');
 
     const nomeEsperado = 'lista-de-precos';
     const nomeFinal = `relatorio_tiny_fator_conversao_${jobId}.xls`;
-    const caminhoFinal = path.join(downloadPath, nomeFinal);
+    const caminhoFinal = path.join(__dirname, nomeFinal);
 
     for (let i = 0; i < 30; i++) {
         const arquivos = fs.readdirSync(downloadPath);
@@ -139,26 +150,17 @@ function gerarJsonCorrigido(caminhoXls, jobId) {
         })
         .filter(item => item.descricao && item.codigo_sku);
 
-    const jsonPath = path.join('/tmp', `saida_tiny_${jobId}.json`);
+    const jsonPath = path.join(__dirname, `saida_tiny_${jobId}.json`);
     fs.writeFileSync(jsonPath, JSON.stringify(jsonFormatado, null, 2), 'utf8');
     console.log(`📄 JSON corrigido salvo em: ${jsonPath}`);
-
-    // Retorno final para n8n
-    console.log(JSON.stringify({
-        json: jsonPath,
-        xls: path.join('/tmp/n8n-downloads', `relatorio_tiny_fator_conversao_${jobId}.xls`),
-        timestamp: jobId
-    }));
 }
 
 const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYYY_HH-mm-ss');
 
-(async () => {
+const tentarExecucao = async () => {
     const jobId = generateShortId();
     const email = 'scrap@casadomedico.com.br';
     const password = 'Pingcdm24!!!';
-
-    console.log(`🚀 ${moment().format('HH:mm:ss')} Iniciando execução...`);
 
     try {
         const { browser, page } = await carregarSessaoOuLogar(email, password);
@@ -170,6 +172,11 @@ const generateShortId = () => moment().tz("America/Sao_Paulo").format('DD-MM-YYY
         console.log(`✅ Execução concluída com sucesso [${jobId}]`);
     } catch (error) {
         console.error(`❌ [${jobId}] Erro: ${error.message}`);
-        process.exit(1);
     }
+};
+
+(async () => {
+    const now = moment().tz("America/Sao_Paulo").format('DD-MM-YYYY HH:mm:ss');
+    console.log(`🚀 ${now} - Iniciando execução única...`);
+    await tentarExecucao();
 })();
